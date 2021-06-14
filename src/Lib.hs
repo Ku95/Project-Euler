@@ -3,6 +3,7 @@ module Lib
   ) where
 
 import           Data.Char                      ( digitToInt )
+import           Data.List
 
 -- helper __________________________________________________________________________________________
 
@@ -12,33 +13,37 @@ import           Data.Char                      ( digitToInt )
 primes :: Integral a => [a]
 primes = 2 : 3 : calcNextPrimes (tail primes) [5, 7 ..]
  where
+  calcNextPrimes [] _ = []
   calcNextPrimes (p : ps) candidates =
     let (smallerSquareP, _ : biggerSquareP) = span (< p * p) candidates
     in  smallerSquareP
           ++ calcNextPrimes ps [ c | c <- biggerSquareP, rem c p /= 0 ]
 
--- >>> findMaxFactor 988 primes
--- 19
+-- >>> primeFactors 45
+-- [3,3,5]
 
-findMaxFactor :: Integral a => a -> [a] -> a
-findMaxFactor 1 (next : remaining) = next
-findMaxFactor i (next : remaining)
-  | i `mod` next == 0 = findMaxFactor (i `div` next) (next : remaining)
-  | otherwise         = findMaxFactor i remaining
+primeFactors :: Integral a => a -> [a]
+primeFactors i = factorize i primes
+ where
+  factorize _ [] = error "no primes"
+  factorize 1 _  = []
+  factorize i (next : remaining)
+    | i `mod` next == 0 = next : factorize (i `div` next) (next : remaining)
+    | otherwise         = factorize i remaining
 
 -- problem1 ________________________________________________________________________________________
 
 -- >>> problem1
 -- 233168
 
-problem1 :: Integral a => a
+problem1 :: Integer
 problem1 = sum [ i | i <- [1 .. 1000 - 1], i `mod` 3 == 0 || i `mod` 5 == 0 ]
 
 -- problem2 ________________________________________________________________________________________
 -- >>> problem2
 -- 1089154
 
-problem2 :: Integral a => a
+problem2 :: Integer
 problem2 = sum $ filter even $ takeWhile (< 1000000) fibs
   where fibs = 0 : 1 : [ a + b | (a, b) <- zip fibs (tail fibs) ]
 
@@ -46,14 +51,14 @@ problem2 = sum $ filter even $ takeWhile (< 1000000) fibs
 -- >>> problem3
 -- 6857
 
-problem3 :: Integral a => a
-problem3 = findMaxFactor 600851475143 primes
+problem3 :: Integer
+problem3 = maximum $ primeFactors 600851475143
 
 -- problem4 ________________________________________________________________________________________
 -- >>> problem4
 -- 906609
 
-problem4 :: Int
+problem4 :: Integer
 problem4 = maximum
   [ x * y | x <- [100 .. 999], y <- [100 .. 999], isPalindrom . show $ x * y ]
   where isPalindrom x = x == reverse x
@@ -62,21 +67,21 @@ problem4 = maximum
 -- >>> problem5
 -- 232792560
 
-problem5 :: Integral a => a
+problem5 :: Integer
 problem5 = foldl1 lcm [1 .. 20]
 
 -- problem6 ________________________________________________________________________________________
 -- >>> problem6
 -- 25164150
 
-problem6 :: Integral a => a
+problem6 :: Integer
 problem6 = sum [1 .. 100] ^ 2 - sum (map (^ 2) [1 .. 100])
 
 -- problem7 ________________________________________________________________________________________
 -- >>> problem7
 -- 104743
 
-problem7 :: Integral a => a
+problem7 :: Integer
 problem7 = primes !! 10000
 
 -- problem8 ________________________________________________________________________________________
@@ -100,7 +105,7 @@ problem8 = greatestProduct number
 -- >>> problem9
 -- 31875000
 
-problem9 :: Integral a => a
+problem9 :: Integer
 problem9 = head
   [ a * b * c
   | a <- [1 .. 1000]
@@ -114,8 +119,18 @@ problem9 = head
 -- >>> problem10
 -- 142913828922
 
-problem10 :: Integral a => a
-problem10 = sum $ takeWhile (< 2000000) primes
+problem10 :: Integer
+problem10 = sum . takeWhile (< 2000000) $ primes
+
+-- problem11 _______________________________________________________________________________________
+
+-- >>> problem11
+-- 76576500
+
+problem11 :: Integer
+problem11 = head . filter (\i -> divisorCount i > 500) $ scanl1 (+) [1 ..]
+ where
+  divisorCount = product . map (\l -> 1 + length l) . group . primeFactors
 
 -- problem97 _______________________________________________________________________________________
 
