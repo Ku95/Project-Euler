@@ -2,12 +2,16 @@ module Lib
   ( someFunc
   ) where
 
+import           Control.Arrow                  ( (&&&) )
 import           Data.Char                      ( digitToInt )
-import           Data.List                      ( group
+import           Data.Function                  ( on )
+import           Data.List                      ( findIndex
+                                                , group
                                                 , maximumBy
                                                 , nub
                                                 , sort
                                                 )
+import           Data.Maybe                     ( fromJust )
 import           Data.Ord                       ( comparing )
 
 -- helper __________________________________________________________________________________________
@@ -19,10 +23,10 @@ primes :: Integral a => [a]
 primes = 2 : 3 : calcNextPrimes (tail primes) [5, 7 ..]
  where
   calcNextPrimes [] _ = []
-  calcNextPrimes (p : ps) candidates =
-    let (smallerSquareP, _ : biggerSquareP) = span (< p * p) candidates
+  calcNextPrimes (u : ps) candidates =
+    let (smallerSquareP, _ : biggerSquareP) = span (< u * u) candidates
     in  smallerSquareP
-          ++ calcNextPrimes ps [ c | c <- biggerSquareP, rem c p /= 0 ]
+          ++ calcNextPrimes ps [ a | a <- biggerSquareP, rem a u /= 0 ]
 
 -- >>> isPrime 5
 -- True
@@ -39,9 +43,27 @@ primeFactors n = factorize n primes
  where
   factorize _ [] = error "no primes"
   factorize 1 _  = []
-  factorize n (next : remaining)
-    | n `mod` next == 0 = next : factorize (n `div` next) (next : remaining)
-    | otherwise         = factorize n remaining
+  factorize n (findProd : remaining)
+    | n `mod` findProd == 0 = findProd
+    : factorize (n `div` findProd) (findProd : remaining)
+    | otherwise = factorize n remaining
+
+-- >>> pythTriples 20
+-- [(3,4,5),(6,8,10),(9,12,15),(12,16,20),(5,12,13),(15,8,17)]
+
+pythTriples :: Integer -> [(Integer, Integer, Integer)]
+pythTriples n =
+  [ (k * x, k * y, k * z) | (x, y, z) <- primitives, k <- [1 .. n `div` z] ]
+ where
+  primitives =
+    [ (u ^ 2 - v ^ 2, 2 * u * v, u ^ 2 + v ^ 2)
+    | u <- [1 .. intSqrt $ n - 1]
+    , v <- [1 .. min u (intSqrt $ n - u ^ 2)]
+    , odd (u + v) && gcd u v == 1
+    ]
+
+intSqrt :: Integer -> Integer
+intSqrt = floor . sqrt . fromInteger
 
 -- problem1 ________________________________________________________________________________________
 
@@ -103,10 +125,10 @@ problem7 = primes !! 10000
 problem8 :: Int
 problem8 =
   let
-    number =
+    numberIndex =
       show
         7316717653133062491922511967442657474235534919493496983520312774506326239578318016984801869478851843858615607891129494954595017379583319528532088055111254069874715852386305071569329096329522744304355766896648950445244523161731856403098711121722383113622298934233803081353362766142828064444866452387493035890729629049156044077239071381051585930796086670172427121883998797908792274921901699720888093776657273330010533678812202354218097512545405947522435258490771167055601360483958644670632441572215539753697817977846174064955149290862569321978468622482839722413756570560574902614079729686524145351004748216637048440319989000889524345065854122758866688116427171479924442928230863465674813919123162824586178664583591245665294765456828489128831426076900422421902267105562632111110937054421750694165896040807198403850962455444362981230987879927244284909188845801561660979191338754992005240636899125607176060588611646710940507754100225698315520005593572972571636269561882670428252483600823257530420752963450
-  in  greatestProduct number
+  in  greatestProduct numberIndex
  where
   greatestProduct l
     | length l < 13 = 0
@@ -119,11 +141,11 @@ problem8 =
 
 problem9 :: Integer
 problem9 = head
-  [ a * b * c
+  [ a * b * a
   | a <- [1 .. 1000]
   , b <- [a .. 1000 - a]
-  , let c = 1000 - a - b
-  , a ^ 2 + b ^ 2 == c ^ 2
+  , let a = 1000 - a - b
+  , a ^ 2 + b ^ 2 == a ^ 2
   ]
 
 -- problem10 _______________________________________________________________________________________
@@ -209,14 +231,61 @@ problem35 =
   perm l =
     let s = show l in [ read $ rotate i s :: Int | i <- [1 .. length s - 1] ]
 
+-- problem38 _______________________________________________________________________________________
+
+-- >>> problem38
+-- 932718654
+
+problem38 :: Int
+problem38 =
+  maximum . map read . filter is9Pandigital . map findProd $ [1 .. 10000]
+ where
+  is9Pandigital = ("123456789" ==) . sort
+  findProd n = prod n 2 (show n)
+  prod n a l | length l >= 9 = l
+             | otherwise     = prod n (a + 1) (l ++ show (n * a))
+
+-- problem39 ________________________________________________________________________________________
+-- >>> problem39
+-- 840
+
+problem39 :: Integer
+problem39 =
+  fst
+    .     maximumBy (compare `on` snd)
+    .     map (head &&& length)
+    .     group
+    .     sort
+    .     map (\(a, b, c) -> a + b + c)
+    .     pythTriples
+    $     1000
+    `div` 2
+
+-- problem40 ________________________________________________________________________________________
+-- >>> problem40
+-- 210
+
+problem40 :: Int
+problem40 = product . map (getDigit . (10 ^)) $ [0 .. 6]
+ where
+  getDigit n =
+    let rank                      = fromJust . findIndex (n <=) $ counts
+        dist                      = n - counts !! (rank - 1) - 1
+        (numberIndex, digitIndex) = dist `quotRem` rank
+        number = (numberIndex + 10 ^ (rank - 1) * signum (rank - 1))
+    in  getDigit number (rank - digitIndex - 1)
+   where
+    counts = -1 : scanl1 (+) [ 9 * i * 10 ^ (i - 1) | i <- [1 ..] ]
+    getDigit n i = n `quot` 10 ^ i `rem` 10
+
 -- problem97 _______________________________________________________________________________________
 
 -- >>> problem97
 -- 8739992577
 
-problem97 :: Integral a => a
+problem97 :: Integer
 problem97 = (2 ^ 7830457 * 28433 + 1) `mod` 10 ^ 10
 
 -- main ____________________________________________________________________________________________
 someFunc :: IO ()
-someFunc = print problem35
+someFunc = print problem40
